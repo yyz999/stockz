@@ -20,15 +20,24 @@ class StockzDatabaseClient:
         self.__InitSymbolIdMap()
 
     def __del__(self):
-        status = True
-        status &= self.conn_.close()
-        if not status:
+        try:
+            self.conn_.close()
+        except:
             logging.warning('StockzDatabaseClient close failed')
 
     def __InitSymbolIdMap(self):
         cursor = self.conn_.cursor()
-        #
-        cursor.commit()
+        cursor.execute(
+            'CREATE TABLE IF NOT EXISTS company_list ( '
+            'id int unsigned not null auto_increment primary key,'
+            'symbol char(16) not null,'
+            'name char(200) not null,'
+            'ipo_year int unsigned,'
+            'sector char(200),'
+            'industry char(200) )')
+        cursor.execute('SELECT id,symbol FROM company_list')
+        for (db_id, symbol) in cursor:
+            self.symbol_id_map[symbol] = db_id
         cursor.close()
 
     def __GetIdBySymbol(self, symbol):
@@ -36,42 +45,48 @@ class StockzDatabaseClient:
 
     # Return a list of all stock symbol in database
     def ReadStockList(self):
-        cursor = self.conn_.cursor()
-        cursor.execute('SELECT * FROM company_list')
-        values = cursor.fetchall()
-        cursor.commit()
-        cursor.close()
-        return valuse
+        ret = []
+        for sym in self.symbol_id_map:
+            ret.append(sym)
+        return ret
 
     def ReadStockInfo(self, symbol):
         cursor = self.conn_.cursor()
         #
-        cursor.commit()
         cursor.close()
 
+    # company_info = [name, ipo_year(int), sector, industry]
     def UpdateStockList(self, symbol, company_info):
+        symbol = symbol.upper()
         cursor = self.conn_.cursor()
-        cursor.execute('INSERT INTO company_list (id, name) values (%s, %s)', [
-                       '1', 'Michael'])
-        cursor.execute(
-            'CREATE TABLE sd_%s (id varchar(20) primary key, name varchar(20))', [symbol])
-        cursor.commit()
+        if symbol in self.symbol_id_map:
+            cursor.execute(
+                'UPDATE company_list SET name="%s",ipo_year=%d,sector="%s",industry="%s" WHERE id=%d' % (
+                    company_info[0], company_info[1], company_info[2], company_info[3], self.__GetIdBySymbol(symbol)))
+        else:
+            cursor.execute(
+                'INSERT INTO company_list values (NULL, "%s", "%s", %d, "%s", "%s" )' % (
+                    symbol, company_info[0], company_info[1], company_info[2], company_info[3]))
+            cursor.execute(
+                'SELECT id FROM company_list where symbol="%s"' % (symbol))
+            self.symbol_id_map[symbol] = cursor.fetchall()[0][0]
+        self.conn_.commit()
         cursor.close()
 
     def ReadStockData(self, symbol):
+        symbol = symbol.upper()
         cursor = self.conn_.cursor()
         #
-        cursor.commit()
         cursor.close()
 
     def ReadStockDataByDate(self, symbol, date):
+        symbol = symbol.upper()
         cursor = self.conn_.cursor()
         #
-        cursor.commit()
         cursor.close()
 
     def UpdateStockData(self, symbol, data):
+        symbol = symbol.upper()
         cursor = self.conn_.cursor()
         #
-        cursor.commit()
         cursor.close()

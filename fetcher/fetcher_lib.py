@@ -7,6 +7,7 @@ from socket import timeout
 class CompanyListFetcher:
     def __init__(self, market_name):
         self._market_name_ = market_name
+    # return [[],...]
 
     def GetList(self):
         NASDAQ_URL = "http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&render=download"
