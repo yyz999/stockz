@@ -2,12 +2,13 @@
 import logging
 import urllib.request
 from socket import timeout
+import quandl
+import datetime
 
 
 class CompanyListFetcher:
     def __init__(self, market_name):
         self._market_name_ = market_name
-    # return [[],...]
 
     def GetList(self):
         NASDAQ_URL = "http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&render=download"
@@ -43,3 +44,15 @@ class CompanyListFetcher:
             else:
                 company_table.append(tmp)
         return company_table
+
+
+class StockDataFetcher:
+    def __init__(self, symbol, start_date):
+        self.symbol = symbol.upper()
+        self.start_date = start_date
+        quandl.ApiConfig.api_key = "yCpLwy5AWwP_LpMjs4U8"
+
+    def UpdateStockData(self):
+        response_data = quandl.get(
+            "WIKI/%s" % (self.symbol), rows=(datetime.date.today() - self.start_date).days)
+        return response_data.to_csv()
