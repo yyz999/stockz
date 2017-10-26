@@ -53,7 +53,12 @@ class StockDataFetcher:
         quandl.ApiConfig.api_key = "yCpLwy5AWwP_LpMjs4U8"
 
     def UpdateStockData(self):
-        response_data = quandl.get(
-            "WIKI/%s" % (self.symbol), rows=(
-                datetime.date.today() - self.start_date).days)
+        try:
+            response_data = quandl.get(
+                "WIKI/%s" % (self.symbol), rows=(
+                    datetime.date.today() - self.start_date).days)
+        except:
+            logging.info('StockDataFetcher failed to update: %s' %
+                         (self.symbol))
+            return None
         return response_data.to_csv()

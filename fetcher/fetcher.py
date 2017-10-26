@@ -9,7 +9,8 @@ def main():
     logging.basicConfig(filename=LOG_DIR + 'fetcher.log', level=logging.INFO)
     logging.info('Started')
     fetcher_manager_ = fetcher_manager.FetcherManager()
-    fetcher_manager_.UpdateCompanyList()
+    fetcher_manager_.UpdateStockData()
+    # fetcher_manager_.UpdateCompanyList()
     logging.info('Finished')
 
 
