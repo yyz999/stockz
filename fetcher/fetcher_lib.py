@@ -54,5 +54,6 @@ class StockDataFetcher:
 
     def UpdateStockData(self):
         response_data = quandl.get(
-            "WIKI/%s" % (self.symbol), rows=(datetime.date.today() - self.start_date).days)
+            "WIKI/%s" % (self.symbol), rows=(
+                datetime.date.today() - self.start_date).days)
         return response_data.to_csv()
