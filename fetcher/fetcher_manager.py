@@ -6,6 +6,7 @@ import csv
 import io
 import fetcher_lib
 import logging
+import random
 import threading
 import time
 
@@ -21,12 +22,12 @@ class UpdateStockDataJob(threading.Thread):
     def run(self):
         for symbol in self.stock_list_:
             if hash(symbol) % self.total_thread_ == self.thread_id_:
-                last_update_date_str = self.db_client_.ReadLatestDateBySymbol(
+                last_update_date = self.db_client_.ReadLatestDateBySymbol(
                     symbol)
-                if last_update_date_str:
-                    last_update_date = datetime.datetime.strptime(
-                        str(last_update_date_str), '%Y-%m-%d').date()
-                else:
+                health = self.db_client_.ReadStockHealth(symbol)
+                if random.randint(0, 100) > health:
+                    continue
+                if not last_update_date:
                     last_update_date = datetime.date(2000, 1, 1)
                 if last_update_date < datetime.date.today():
                     stock_fetcher = fetcher_lib.StockDataFetcher(
@@ -34,21 +35,24 @@ class UpdateStockDataJob(threading.Thread):
                     time.sleep(0.5)
                     stock_data = stock_fetcher.UpdateStockData()
                     if stock_data is None:
+                        self.db_client_.UpdateStockHealth(
+                            symbol, max(4, health - 2))
                         continue
+                    self.db_client_.UpdateStockHealth(symbol, 100)
                     logging.info('Shard %d updated stock: %s' %
                                  (self.thread_id_, symbol))
                     print('Shard %d updated stock: %s' %
                           (self.thread_id_, symbol))
-                    reader = csv.DictReader(io.StringIO(stock_data))
+                    reader = csv.DictReader(io.StringIO(str(stock_data)))
                     for data in reader:
                         if datetime.datetime.strptime(
-                                data['Date'], '%Y-%m-%d').date() > last_update_date:
+                                data['date'], '%Y-%m-%d').date() > last_update_date:
                             self.db_client_.InsertStockData(
-                                symbol, data['Date'], open_p=data['Open'], close_p=data['Close'],
-                                high_p=data['High'], low_p=data['Low'], volume_p=data['Volume'],
-                                open_adj=data['Adj. Open'], close_adj=data['Adj. Close'],
-                                high_adj=data['Adj. High'], low_adj=data['Adj. Low'], volume_adj=data['Adj. Volume'],
-                                ex_dividend=data['Ex-Dividend'], split_ratio=data['Split Ratio'])
+                                symbol, data['date'], open_p=data['open'], close_p=data['close'],
+                                high_p=data['high'], low_p=data['low'], volume_p=data['volume'],
+                                open_adj=data['adj_open'], close_adj=data['adj_close'],
+                                high_adj=data['adj_high'], low_adj=data['adj_low'], volume_adj=data['adj_volume'],
+                                ex_dividend=data['ex-dividend'], split_ratio=data['split_ratio'])
 
 
 class FetcherManager:
@@ -60,7 +64,7 @@ class FetcherManager:
         logging.info('Start update NYSE')
         fetcher_nyse = fetcher_lib.CompanyListFetcher("NYSE")
         company_list = fetcher_nyse.GetList()
-        logging.info('NYSE company list:\n' + str(company_list))
+        logging.info('NYSE company list done\n')
         company_list.pop(0)
         for company in company_list:
             db_client.UpdateStockList(
@@ -68,7 +72,7 @@ class FetcherManager:
         logging.info('Start update NASDAQ')
         fetcher_nasdaq = fetcher_lib.CompanyListFetcher("NASDAQ")
         company_list = fetcher_nasdaq.GetList()
-        logging.info('Nasdaq company list:\n' + str(company_list))
+        logging.info('Nasdaq company list done\n')
         company_list.pop(0)
         for company in company_list:
             db_client.UpdateStockList(

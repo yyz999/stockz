@@ -36,7 +36,8 @@ class StockzDatabaseClient:
             'name char(200) not null,'
             'ipo_year int unsigned,'
             'sector char(200),'
-            'industry char(200) )')
+            'industry char(200),'
+            'health tinyint NOT NULL DEFAULT 100 )')
         cursor.execute('SELECT id,symbol FROM company_list')
         for (db_id, symbol) in cursor:
             self.symbol_id_map[symbol] = db_id
@@ -78,6 +79,36 @@ class StockzDatabaseClient:
         cursor.close()
         return ret
 
+    # health=[0, 100]
+    def ReadStockHealth(self, symbol):
+        cursor = self.conn_.cursor()
+        symbol = self.__SymbolWasher(symbol)
+        if symbol not in self.symbol_id_map:
+            logging.warning('Read invalid stock info')
+            return None
+        symbol_id = self.__GetIdBySymbol(symbol)
+        cursor.execute(
+            'SELECT health from company_list where id=%d' % (symbol_id))
+        ret = cursor.fetchall()[0][0]
+        self.conn_.commit()
+        cursor.close()
+        return ret
+
+    def UpdateStockHealth(self, symbol, val):
+        if val < 0 or val > 100:
+            logging.info('New health value error: %d' % (val))
+        cursor = self.conn_.cursor()
+        symbol = self.__SymbolWasher(symbol)
+        if symbol not in self.symbol_id_map:
+            logging.warning('Invalid symbol')
+            return False
+        symbol_id = self.__GetIdBySymbol(symbol)
+        cursor.execute(
+            'UPDATE company_list SET health=%d WHERE id=%d' % (val, symbol_id))
+        self.conn_.commit()
+        cursor.close()
+        return True
+
     # company_info = [name, ipo_year(int), sector, industry]
     def UpdateStockList(self, symbol, company_info):
         symbol = self.__SymbolWasher(symbol)
@@ -88,7 +119,7 @@ class StockzDatabaseClient:
                     company_info[0], company_info[1], company_info[2], company_info[3], self.__GetIdBySymbol(symbol)))
         else:
             cursor.execute(
-                'INSERT INTO company_list values (NULL, "%s", "%s", %d, "%s", "%s" )' % (
+                'INSERT INTO company_list values (NULL, "%s", "%s", %d, "%s", "%s", 100 )' % (
                     symbol, company_info[0], company_info[1], company_info[2], company_info[3]))
             cursor.execute(
                 'SELECT id FROM company_list where symbol="%s"' % (symbol))

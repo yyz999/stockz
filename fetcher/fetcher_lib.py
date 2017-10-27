@@ -48,15 +48,17 @@ class CompanyListFetcher:
 
 class StockDataFetcher:
     def __init__(self, symbol, start_date):
-        self.symbol = symbol.upper()
-        self.start_date = start_date
+        self.symbol_ = symbol.upper()
+        self.start_date_ = start_date
         quandl.ApiConfig.api_key = "yCpLwy5AWwP_LpMjs4U8"
 
     def UpdateStockData(self):
         try:
-            response_data = quandl.get(
-                "WIKI/%s" % (self.symbol), rows=(
-                    datetime.date.today() - self.start_date).days)
+            response_data = quandl.get_table(
+                "WIKI/PRICES", ticker=self.symbol_,
+                date={'gte': str(self.start_date_), 'lte': str(datetime.date.today())})
+            if len(response_data.to_dict()['date']) == 0:
+                return None
         except:
             logging.info('StockDataFetcher failed to update: %s' %
                          (self.symbol))
