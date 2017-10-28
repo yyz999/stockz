@@ -47,9 +47,9 @@ class CompanyListFetcher:
 
 
 class StockDataFetcher:
-    def __init__(self, symbol, start_date):
+    def __init__(self, symbol, last_update_date):
         self.symbol_ = symbol.upper()
-        self.start_date_ = start_date
+        self.start_date_ = last_update_date + datetime.timedelta(days=1)
         quandl.ApiConfig.api_key = "yCpLwy5AWwP_LpMjs4U8"
 
     def UpdateStockData(self):

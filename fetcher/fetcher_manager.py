@@ -21,38 +21,44 @@ class UpdateStockDataJob(threading.Thread):
 
     def run(self):
         for symbol in self.stock_list_:
-            if hash(symbol) % self.total_thread_ == self.thread_id_:
-                last_update_date = self.db_client_.ReadLatestDateBySymbol(
-                    symbol)
-                health = self.db_client_.ReadStockHealth(symbol)
-                if random.randint(0, 100) > health:
-                    continue
-                if not last_update_date:
-                    last_update_date = datetime.date(2000, 1, 1)
-                if last_update_date < datetime.date.today():
-                    stock_fetcher = fetcher_lib.StockDataFetcher(
-                        symbol, last_update_date)
-                    time.sleep(0.5)
-                    stock_data = stock_fetcher.UpdateStockData()
-                    if stock_data is None:
-                        self.db_client_.UpdateStockHealth(
-                            symbol, max(4, health - 2))
-                        continue
-                    self.db_client_.UpdateStockHealth(symbol, 100)
-                    logging.info('Shard %d updated stock: %s' %
-                                 (self.thread_id_, symbol))
-                    print('Shard %d updated stock: %s' %
-                          (self.thread_id_, symbol))
-                    reader = csv.DictReader(io.StringIO(str(stock_data)))
-                    for data in reader:
-                        if datetime.datetime.strptime(
-                                data['date'], '%Y-%m-%d').date() > last_update_date:
-                            self.db_client_.InsertStockData(
-                                symbol, data['date'], open_p=data['open'], close_p=data['close'],
-                                high_p=data['high'], low_p=data['low'], volume_p=data['volume'],
-                                open_adj=data['adj_open'], close_adj=data['adj_close'],
-                                high_adj=data['adj_high'], low_adj=data['adj_low'], volume_adj=data['adj_volume'],
-                                ex_dividend=data['ex-dividend'], split_ratio=data['split_ratio'])
+            if hash(symbol) % self.total_thread_ != self.thread_id_:
+                continue
+            last_update_date = self.db_client_.ReadLatestDateBySymbol(
+                symbol)
+            if not last_update_date:
+                last_update_date = datetime.date(2000, 1, 1)
+            # EOD data update after 18:00
+            if datetime.datetime.now().hour >= 18 and last_update_date >= datetime.date.today():
+                continue
+            if datetime.datetime.now().hour < 18 and last_update_date >= datetime.date.today() - datetime.timedelta(days=1):
+                continue
+            health = self.db_client_.ReadStockHealth(symbol)
+            if random.randint(0, 100) > health:
+                continue
+            # Start to update
+            stock_fetcher = fetcher_lib.StockDataFetcher(
+                symbol, last_update_date)
+            stock_data = stock_fetcher.UpdateStockData()
+            time.sleep(0.5)
+            if stock_data is None:
+                self.db_client_.UpdateStockHealth(
+                    symbol, max(4, health - 2))
+                continue
+            self.db_client_.UpdateStockHealth(symbol, 100)
+            count = 0
+            reader = csv.DictReader(io.StringIO(str(stock_data)))
+            for data in reader:
+                if datetime.datetime.strptime(
+                        data['date'], '%Y-%m-%d').date() > last_update_date:
+                    count += 1
+                    self.db_client_.InsertStockData(
+                        symbol, data['date'], open_p=data['open'], close_p=data['close'],
+                        high_p=data['high'], low_p=data['low'], volume_p=data['volume'],
+                        open_adj=data['adj_open'], close_adj=data['adj_close'],
+                        high_adj=data['adj_high'], low_adj=data['adj_low'], volume_adj=data['adj_volume'],
+                        ex_dividend=data['ex-dividend'], split_ratio=data['split_ratio'])
+            logging.info('Shard %d updated %d rows in stock: %s' %
+                         (self.thread_id_, count, symbol))
 
 
 class FetcherManager:

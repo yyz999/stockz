@@ -1,0 +1,21 @@
+#!/bin/bash
+
+PIDFILE=/var/run/stockz_fetcher_daemon.pid
+
+case $1 in
+   start)
+       source ~/Project/stockz/fetcher
+       # Launch your program as a detached process
+       python3 ~/Project/stockz/fetcher/fetcher.py 2>/dev/null &
+       # Get its PID and store it
+       echo $! > ${PIDFILE} 
+   ;;
+   stop)
+      kill `cat ${PIDFILE}`
+      # Now that it's killed, don't forget to remove the PID file
+      rm ${PIDFILE}
+   ;;
+   *)
+      echo "usage: stockz_fetcher_daemon {start|stop}" ;;
+esac
+exit 0
